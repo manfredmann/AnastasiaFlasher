@@ -9,10 +9,10 @@ class CRC32
 public:
   CRC32();
   ~CRC32();
-  unsigned long crc(unsigned char *p, size_t n);
+  uint32_t crc(unsigned char *p, size_t n);
   
 private:
-  unsigned long crcTable[256];
+  uint32_t crcTable[256];
   void make_crc_table();
 
 };
