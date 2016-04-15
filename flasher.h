@@ -88,7 +88,7 @@ namespace Error {
   class USBTransferException {
   public:
     USBTransferException(int error) {
-      this->msg = std::string(libusb_error_name(error));
+      //this->msg = std::string(libusb_error_name(error));
       switch(error) {
         case LIBUSB_ERROR_IO: {
           this->msg = "USB Input/output error";

@@ -73,81 +73,81 @@ void flash(string fname, bool checkSig) {
         cout << "This is not a AnastasiaFlasher firmware" << endl;
         return;
       }
-
-      libusb_init(NULL);
-      //libusb_set_debug(NULL, 3);
-
-      handle = libusb_open_device_with_vid_pid(NULL, 0x0483, 0x5710);
-      if (handle == NULL) {
-        throw Error::USBException(0);
-      } else {
-        cout << "Device: OK" << endl;
-      }
-
-      if(libusb_kernel_driver_active(handle, DEV_INTF)) {
-        if(libusb_detach_kernel_driver(handle, DEV_INTF) != 0) {
-          throw Error::USBException(1);
-        }
-      }
-      
-      if (libusb_claim_interface(handle,  DEV_INTF) < 0) {
-        throw Error::USBException(2);
-      }
-
-      uint8_t data[PACKET_SIZE - 2];
-      memset(data, 0, PACKET_SIZE - 2);
-
-      CRC32* crc = new CRC32();
-      Flasher* flasher = new Flasher(handle);
-
-      BOOTInfoData bootInfo = flasher->getBootInfo();
-
-      cout << "Bootloader: ";
-      cout << bootInfo.bootloader_name;
-      cout << " v" << (int)bootInfo.v_major << "." << (int)bootInfo.v_minor << "." << (int)bootInfo.v_fixn << endl;
-      cout << "Flash size: \t" << bootInfo.flash_size << "Kb" << endl;
-      cout << "Page size: \t" << bootInfo.page_size << "b" << endl;
-      cout << "Pages: \t\t" << (bootInfo.flash_size * 1024) / bootInfo.page_size << endl;
-
-      int pages = ceil((float)fSize / (float)bootInfo.page_size);
-
-      cout << "File contains " << pages << " pages" << endl;
-      flasher->unlockFlash();
-
-      int page;
-      uint32_t addr = APP_ADDRESS;
-
-      for(page = 0; page < pages; page++) {
-        uint8_t buf[bootInfo.page_size] = { 0 };
-        size_t r = 0;
-        
-        int n = 1024;
-        if ((1024 + file.tellg()) > fSize) {
-          n = fSize - file.tellg();
-        }
-        r = file.read((char *) &buf[0], n).gcount();
-        
-        flasher->erasePage(addr);
-        cout << (page + 1) << ": 0x" << hex << addr << " erase page" << endl;
-
-        flasher->sendPage(&buf[0], r);
-
-        cout << (page + 1) << ": 0x" << hex << addr << " write page" << endl;
-        flasher->writePage();
-
-        cout << (page + 1) << ": 0x" << hex << addr << " check CRC32 ";
-        uint32_t crc32 = crc->crc(&buf[0], 1024);
-        if(flasher->checkCRC(addr, crc32)) {
-          cout << "OK" << endl;
-        } else {
-          cout << "Fail" << endl;
-        }
-
-        addr += bootInfo.page_size;
-      }
-
-      flasher->lockFlash();
     }
+
+    libusb_init(NULL);
+    // libusb_set_debug(NULL, 3);
+
+    handle = libusb_open_device_with_vid_pid(NULL, 0x0483, 0x5710);
+    if(handle == NULL) {
+      throw Error::USBException(0);
+    } else {
+      cout << "Device: OK" << endl;
+    }
+
+    if(libusb_kernel_driver_active(handle, DEV_INTF)) {
+      if(libusb_detach_kernel_driver(handle, DEV_INTF) != 0) {
+        throw Error::USBException(1);
+      }
+    }
+
+    if(libusb_claim_interface(handle, DEV_INTF) < 0) {
+      throw Error::USBException(2);
+    }
+
+    uint8_t data[PACKET_SIZE - 2];
+    memset(data, 0, PACKET_SIZE - 2);
+
+    CRC32* crc = new CRC32();
+    Flasher* flasher = new Flasher(handle);
+
+    BOOTInfoData bootInfo = flasher->getBootInfo();
+
+    cout << "Bootloader: ";
+    cout << bootInfo.bootloader_name;
+    cout << " v" << (int)bootInfo.v_major << "." << (int)bootInfo.v_minor << "." << (int)bootInfo.v_fixn << endl;
+    cout << "Flash size: \t" << bootInfo.flash_size << "Kb" << endl;
+    cout << "Page size: \t" << bootInfo.page_size << "b" << endl;
+    cout << "Pages: \t\t" << (bootInfo.flash_size * 1024) / bootInfo.page_size << endl;
+
+    int pages = ceil((float)fSize / (float)bootInfo.page_size);
+
+    cout << "File contains " << pages << " pages" << endl;
+    flasher->unlockFlash();
+
+    int page;
+    uint32_t addr = APP_ADDRESS;
+
+    for(page = 0; page < pages; page++) {
+      uint8_t buf[bootInfo.page_size] = { 0 };
+      size_t r = 0;
+
+      int n = 1024;
+      if((1024 + file.tellg()) > fSize) {
+        n = fSize - file.tellg();
+      }
+      r = file.read((char*)&buf[0], n).gcount();
+
+      flasher->erasePage(addr);
+      cout << (page + 1) << ": 0x" << hex << addr << " erase page" << endl;
+
+      flasher->sendPage(&buf[0], r);
+
+      cout << (page + 1) << ": 0x" << hex << addr << " write page" << endl;
+      flasher->writePage();
+
+      cout << (page + 1) << ": 0x" << hex << addr << " check CRC32 ";
+      uint32_t crc32 = crc->crc(&buf[0], 1024);
+      if(flasher->checkCRC(addr, crc32)) {
+        cout << "OK" << endl;
+      } else {
+        cout << "Fail" << endl;
+      }
+
+      addr += bootInfo.page_size;
+    }
+
+    flasher->lockFlash();
     file.close();
   } catch (ios_base::failure &e) {
     cout << "Caught an exception: " << e.what() << endl;
