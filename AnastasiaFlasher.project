@@ -25,6 +25,7 @@
     <File Name="flasher.cpp"/>
     <File Name="CRC32.h"/>
     <File Name="CRC32.cpp"/>
+    <File Name="errors.h"/>
   </VirtualDirectory>
   <Settings Type="Executable">
     <GlobalSettings>

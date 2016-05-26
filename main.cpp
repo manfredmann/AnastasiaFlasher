@@ -2,6 +2,7 @@
 
 #include <string>
 #include <algorithm>
+#include <cmath>
 #include <map>
 #include <fstream>
 #include <tclap/CmdLine.h>
@@ -95,9 +96,6 @@ void flash(string fname, bool checkSig) {
       throw Error::USBException(2);
     }
 
-    uint8_t data[PACKET_SIZE - 2];
-    memset(data, 0, PACKET_SIZE - 2);
-
     CRC32* crc = new CRC32();
     Flasher* flasher = new Flasher(handle);
 
@@ -128,9 +126,14 @@ void flash(string fname, bool checkSig) {
       }
       r = file.read((char*)&buf[0], n).gcount();
 
-      flasher->erasePage(addr);
+      
+      cout << (page + 1) << ": 0x" << hex << addr << " set page addr" << endl;
+      
+      flasher->setPageAddr(addr);
+      flasher->erasePage();
       cout << (page + 1) << ": 0x" << hex << addr << " erase page" << endl;
 
+      flasher->prepareDataSend();
       flasher->sendPage(&buf[0], r);
 
       cout << (page + 1) << ": 0x" << hex << addr << " write page" << endl;
@@ -149,11 +152,14 @@ void flash(string fname, bool checkSig) {
 
     flasher->lockFlash();
     file.close();
+    
   } catch (ios_base::failure &e) {
     cout << "Caught an exception: " << e.what() << endl;
   } catch (Error::USBException &e) {
     cout << "Error: " << e.getError() << endl;
   } catch (Error::USBTransferException &e) {
+    cout << "Error: " << e.getError() << endl;
+  } catch (Error::FlasherException &e) {
     cout << "Error: " << e.getError() << endl;
   }
   
@@ -171,7 +177,7 @@ int main(int argc, char *argv[]) {
 
 
     vector<string> allowed;
-		allowed.push_back("flash");
+		allowed.push_back("write");
 		allowed.push_back("erase");
 		allowed.push_back("reboot");
 		allowed.push_back("dump");
@@ -194,21 +200,21 @@ int main(int argc, char *argv[]) {
     return 0;
   }
   
-  #define CMD_FLASH 1
+  #define CMD_WRITE 1
   #define CMD_DUMP 2
   #define CMP_ERASE 3
   #define CMD_REBOOT 4
   
   map <string, int> allowedCommands;
   
-  allowedCommands["flash"] = CMD_FLASH;
+  allowedCommands["write"] = CMD_WRITE;
   allowedCommands["dump"] = CMD_DUMP;
   allowedCommands["erase"] = CMP_ERASE;
   allowedCommands["reboot"] = CMD_REBOOT;
   
   
   switch(allowedCommands[command]) {
-    case CMD_FLASH: {
+    case CMD_WRITE: {
       flash(fname, checkSig);
       break;
     }
