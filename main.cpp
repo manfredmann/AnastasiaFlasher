@@ -45,6 +45,73 @@ bool findVersionSignature(firmware_version *ver, ifstream *file) {
   return bingo;
 }
 
+libusb_device_handle *usbInit(void) {
+  libusb_device_handle *handle = NULL;
+  libusb_init(NULL);
+    // libusb_set_debug(NULL, 3);
+
+  handle = libusb_open_device_with_vid_pid(NULL, 0x0483, 0x5710);
+  if(handle == NULL) {
+    throw Error::USBException(0);
+  } else {
+    cout << "Device: \t\tOK" << endl;
+  }
+
+  if(libusb_kernel_driver_active(handle, DEV_INTF)) {
+    if(libusb_detach_kernel_driver(handle, DEV_INTF) != 0) {
+      throw Error::USBException(1);
+    }
+  }
+
+  if(libusb_claim_interface(handle, DEV_INTF) < 0) {
+    throw Error::USBException(2);
+  }
+  
+  return handle;
+}
+
+void usbDeInit(libusb_device_handle *handle) {
+  if(handle != NULL)
+    libusb_close(handle);
+  libusb_exit(NULL);
+}
+
+
+void printBootInfo(BOOTInfoData *bootInfo) {
+  int pages = (bootInfo->flash_size * 1024) / bootInfo->page_size;
+  int pagesBootloader = 10240 / bootInfo->page_size;
+  int app_addr = bootInfo->app_addr;
+  
+  cout << "Bootloader: \t\t";
+  cout << bootInfo->bootloader_name;
+  cout << " v" << (int)bootInfo->v_major << "." << (int)bootInfo->v_minor << "." << (int)bootInfo->v_fixn << endl;
+  cout << "Flash size: \t\t" << bootInfo->flash_size << "Kb" << endl;
+  cout << "Page size: \t\t" << bootInfo->page_size << "b" << endl;
+  cout << "Pages: \t\t\t" << pages << " (" << pagesBootloader << " for bootloader) " << endl;
+  cout << "Available pages: \t" << pages - 10 << ": 0x" << hex << app_addr << " - 0x" << hex << (app_addr + ((pages - 10) * 1024)) << endl;
+  cout << "Application address: \t" << app_addr << endl;
+}
+
+void getBootInfo(void) {
+  try {
+    libusb_device_handle *handle = usbInit();
+    Flasher* flasher = new Flasher(handle);
+    
+    BOOTInfoData bootInfo = flasher->getBootInfo();
+    
+    printBootInfo(&bootInfo);
+
+    usbDeInit(handle);
+  } catch (Error::USBException &e) {
+    cout << "Error: " << e.getError() << endl;
+  } catch (Error::USBTransferException &e) {
+    cout << "Error: " << e.getError() << endl;
+  } catch (Error::FlasherException &e) {
+    cout << "Error: " << e.getError() << endl;
+  }
+  
+}
+
 void flash(string fname, bool checkSig) {
   ifstream file;
   firmware_version fVersion;
@@ -75,46 +142,24 @@ void flash(string fname, bool checkSig) {
         return;
       }
     }
-
-    libusb_init(NULL);
-    // libusb_set_debug(NULL, 3);
-
-    handle = libusb_open_device_with_vid_pid(NULL, 0x0483, 0x5710);
-    if(handle == NULL) {
-      throw Error::USBException(0);
-    } else {
-      cout << "Device: OK" << endl;
-    }
-
-    if(libusb_kernel_driver_active(handle, DEV_INTF)) {
-      if(libusb_detach_kernel_driver(handle, DEV_INTF) != 0) {
-        throw Error::USBException(1);
-      }
-    }
-
-    if(libusb_claim_interface(handle, DEV_INTF) < 0) {
-      throw Error::USBException(2);
-    }
-
+    
+    handle = usbInit();
+    
     CRC32* crc = new CRC32();
     Flasher* flasher = new Flasher(handle);
 
     BOOTInfoData bootInfo = flasher->getBootInfo();
-
-    cout << "Bootloader: ";
-    cout << bootInfo.bootloader_name;
-    cout << " v" << (int)bootInfo.v_major << "." << (int)bootInfo.v_minor << "." << (int)bootInfo.v_fixn << endl;
-    cout << "Flash size: \t" << bootInfo.flash_size << "Kb" << endl;
-    cout << "Page size: \t" << bootInfo.page_size << "b" << endl;
-    cout << "Pages: \t\t" << (bootInfo.flash_size * 1024) / bootInfo.page_size << endl;
-
+    
+    printBootInfo(&bootInfo);
+    
     int pages = ceil((float)fSize / (float)bootInfo.page_size);
-
+    
     cout << "File contains " << pages << " pages" << endl;
+
     flasher->unlockFlash();
 
     int page;
-    uint32_t addr = APP_ADDRESS;
+    uint32_t addr = bootInfo.app_addr;
 
     for(page = 0; page < pages; page++) {
       uint8_t buf[bootInfo.page_size] = { 0 };
@@ -162,10 +207,9 @@ void flash(string fname, bool checkSig) {
   } catch (Error::FlasherException &e) {
     cout << "Error: " << e.getError() << endl;
   }
-  
-  if(handle != NULL)
-    libusb_close(handle);
-  libusb_exit(NULL);
+
+
+  usbDeInit(handle);
 }
 
 int main(int argc, char *argv[]) {
@@ -181,6 +225,7 @@ int main(int argc, char *argv[]) {
 		allowed.push_back("erase");
 		allowed.push_back("reboot");
 		allowed.push_back("dump");
+    allowed.push_back("bootinfo");
 		ValuesConstraint<string> allowedVals(allowed);
 
     UnlabeledValueArg<string> cmdArg("command", "command", true, "", "command", false, (Visitor *) &allowedVals);
@@ -204,6 +249,7 @@ int main(int argc, char *argv[]) {
   #define CMD_DUMP 2
   #define CMP_ERASE 3
   #define CMD_REBOOT 4
+  #define CMD_BOOTINFO 5
   
   map <string, int> allowedCommands;
   
@@ -211,11 +257,15 @@ int main(int argc, char *argv[]) {
   allowedCommands["dump"] = CMD_DUMP;
   allowedCommands["erase"] = CMP_ERASE;
   allowedCommands["reboot"] = CMD_REBOOT;
-  
+  allowedCommands["bootinfo"] = CMD_BOOTINFO;
   
   switch(allowedCommands[command]) {
     case CMD_WRITE: {
       flash(fname, checkSig);
+      break;
+    }
+    case CMD_BOOTINFO: {
+      getBootInfo();
       break;
     }
     case CMD_DUMP: {

@@ -30,8 +30,6 @@ using namespace std;
 #define BOOT_RETURN_OVEFLOW 0x02
 #define BOOT_RETURN_CRC32_ERROR 0x03
 
-#define APP_ADDRESS 0x08002800
-
 #define BOOT_CMD 1
 #define BOOT_DATA 2
 
@@ -43,6 +41,7 @@ typedef struct {
   uint8_t v_fixn;
   uint16_t flash_size;
   uint16_t page_size;
+  uint32_t app_addr;
 } BOOTInfoData;
 
 #pragma pack(1)
