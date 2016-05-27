@@ -134,7 +134,7 @@ void flash(string fname, bool checkSig) {
   try {
     if(checkSig) {
       if(findVersionSignature(&fVersion, &file)) {
-        cout << "Detected firmware: ";
+        cout << "Detected firmware: \t";
         cout << fVersion.firmware_name;
         cout << " v" << (int)fVersion.v_major << "." << (int)fVersion.v_minor << "." << (int)fVersion.v_fixn << endl;
       } else {
@@ -224,8 +224,7 @@ int main(int argc, char *argv[]) {
   bool checkSig;
   try {
     CmdLine cmd("Flasher for Anastasia Bootloader", ' ', "0.1.0");
-
-
+    
     vector<string> allowed;
 		allowed.push_back("write");
 		allowed.push_back("erase");
