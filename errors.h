@@ -122,6 +122,10 @@ namespace Error {
         }
         case 3: {
           this->msg = "The bootloader has returned BOOT_CMD instead of BOOT_DATA";
+          break;
+        }
+        case 4: {
+          this->msg = "Flash has no available space for this firmware";
         }
       }
     }

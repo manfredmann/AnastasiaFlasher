@@ -89,7 +89,7 @@ void printBootInfo(BOOTInfoData *bootInfo) {
   cout << "Page size: \t\t" << bootInfo->page_size << "b" << endl;
   cout << "Pages: \t\t\t" << pages << " (" << pagesBootloader << " for bootloader) " << endl;
   cout << "Available pages: \t" << pages - 10 << ": 0x" << hex << app_addr << " - 0x" << hex << (app_addr + ((pages - 10) * 1024)) << endl;
-  cout << "Application address: \t" << app_addr << endl;
+  cout << "Application address: \t0x" << hex << app_addr << endl;
 }
 
 void getBootInfo(void) {
@@ -152,16 +152,23 @@ void flash(string fname, bool checkSig) {
     
     printBootInfo(&bootInfo);
     
-    int pages = ceil((float)fSize / (float)bootInfo.page_size);
+    int bootloaderPages = 10240 / bootInfo.page_size;
+    int firmwarePages = ((bootInfo.flash_size * 1024) / bootInfo.page_size) - bootloaderPages;
+  
+    int filePages = ceil((float)fSize / (float)bootInfo.page_size);
     
-    cout << "File contains " << pages << " pages" << endl;
+    cout << "File contains " << filePages << " pages" << endl;
+    
+    if (filePages > firmwarePages) {
+      throw Error::FlasherException(4);
+    }
 
     flasher->unlockFlash();
 
     int page;
     uint32_t addr = bootInfo.app_addr;
 
-    for(page = 0; page < pages; page++) {
+    for(page = 0; page < filePages; page++) {
       uint8_t buf[bootInfo.page_size] = { 0 };
       size_t r = 0;
 
@@ -207,7 +214,6 @@ void flash(string fname, bool checkSig) {
   } catch (Error::FlasherException &e) {
     cout << "Error: " << e.getError() << endl;
   }
-
 
   usbDeInit(handle);
 }
