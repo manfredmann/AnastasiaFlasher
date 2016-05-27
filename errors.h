@@ -117,11 +117,11 @@ namespace Error {
           break;
         }
         case 2: {
-          this->msg = "The loader has returned BOOT_MODE_DATA instead of BOOT_MODE_CMD";
+          this->msg = "The bootloader has returned BOOT_MODE_DATA instead of BOOT_MODE_CMD";
           break;
         }
         case 3: {
-          this->msg = "The loader has returned BOOT_MODE_CMD instead of BOOT_MODE_DATA";
+          this->msg = "The bootloader has returned BOOT_MODE_CMD instead of BOOT_MODE_DATA";
         }
       }
     }

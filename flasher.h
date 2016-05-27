@@ -32,8 +32,8 @@ using namespace std;
 
 #define APP_ADDRESS 0x08002800
 
-#define BOOT_MODE_CMD 1
-#define BOOT_MODE_DATA 2
+#define BOOT_CMD 1
+#define BOOT_DATA 2
 
 #pragma pack(1)
 typedef struct {

@@ -8,7 +8,6 @@ Flasher::~Flasher(){
 }
 
 uint8_t *Flasher::sendCommand(uint8_t cmd, uint32_t param1, uint32_t param2, uint8_t *a_mode, uint8_t *size) {
-  
   BOOTCommand command;
   command.cmd = cmd;
   command.param1 = param1;
@@ -17,7 +16,7 @@ uint8_t *Flasher::sendCommand(uint8_t cmd, uint32_t param1, uint32_t param2, uin
   uint8_t tbuf[sizeof(command)+1];
   uint8_t rbuf[63];
   
-  tbuf[0] = BOOT_MODE_CMD;
+  tbuf[0] = BOOT_CMD;
   memcpy(&tbuf[1], &command, sizeof(command));
   int returned;
   int len;
@@ -44,7 +43,7 @@ void Flasher::sendData(BOOTData *data) {
   uint8_t tbuf[sizeof(BOOTData)+1];
   uint8_t rbuf[63];
   
-  tbuf[0] = BOOT_MODE_DATA;
+  tbuf[0] = BOOT_DATA;
   memcpy(&tbuf[1], data, sizeof(BOOTData));
   
   int returned;
@@ -61,7 +60,7 @@ void Flasher::sendData(BOOTData *data) {
     throw Error::USBTransferException(returned);
   }
   
-  if (rbuf[0] != BOOT_MODE_CMD && (len - 1) != sizeof(BOOTCommand)) {
+  if (rbuf[0] != BOOT_CMD && (len - 1) != sizeof(BOOTCommand)) {
     throw Error::FlasherException(2);
   } else {
     BOOTCommand command;
@@ -79,7 +78,7 @@ BOOTInfoData Flasher::getBootInfo() {
   uint8_t mode;
   uint8_t size;
   uint8_t *answer = this->sendCommand(BOOT_GET_INFO, 0x00, 0x00, &mode, &size);
-  if (mode == BOOT_MODE_DATA && size == (MAX_PACKET_SIZE)) {
+  if (mode == BOOT_DATA && size == (MAX_PACKET_SIZE)) {
     memcpy(&data, answer, sizeof(data));
     memcpy(&bootInfo, &data.data, data.size);
     return bootInfo;
@@ -94,7 +93,7 @@ void Flasher::unlockFlash() {
   uint8_t size;
   
   uint8_t *answer = this->sendCommand(BOOT_FLASH_UNLOCK, 0x00, 0x00, &mode, &size);
-  if (mode == BOOT_MODE_CMD && size == sizeof(command)) {
+  if (mode == BOOT_CMD && size == sizeof(command)) {
     
     memcpy(&command, answer, sizeof(command));
     if (command.cmd != BOOT_RETURN_OK) {
@@ -111,7 +110,7 @@ void Flasher::lockFlash() {
   uint8_t size;
   
   uint8_t *answer = this->sendCommand(BOOT_FLASH_LOCK, 0x00, 0x00, &mode, &size);
-  if (mode == BOOT_MODE_CMD && size == sizeof(command)) {
+  if (mode == BOOT_CMD && size == sizeof(command)) {
     
     memcpy(&command, answer, sizeof(command));
     if (command.cmd != BOOT_RETURN_OK) {
@@ -128,7 +127,7 @@ void Flasher::prepareDataSend() {
   uint8_t size;
   
   uint8_t *answer = this->sendCommand(BOOT_FLASH_WRITE_DATA_START, 0x00, 0x00, &mode, &size);
-  if (mode == BOOT_MODE_CMD && size == sizeof(command)) {
+  if (mode == BOOT_CMD && size == sizeof(command)) {
     
     memcpy(&command, answer, sizeof(command));
     if (command.cmd != BOOT_RETURN_OK) {
@@ -145,7 +144,7 @@ void Flasher::setPageAddr(uint32_t addr) {
   uint8_t size;
   
   uint8_t *answer = this->sendCommand(BOOT_FLASH_SET_PAGE_ADDR, addr, 0x00, &mode, &size);
-  if (mode == BOOT_MODE_CMD && size == sizeof(command)) {
+  if (mode == BOOT_CMD && size == sizeof(command)) {
     
     memcpy(&command, answer, sizeof(command));
     if (command.cmd != BOOT_RETURN_OK) {
@@ -162,7 +161,7 @@ void Flasher::erasePage() {
   uint8_t size;
   
   uint8_t *answer = this->sendCommand(BOOT_FLASH_ERASE_PAGE, 0x00, 0x00, &mode, &size);
-  if (mode == BOOT_MODE_CMD && size == sizeof(command)) {
+  if (mode == BOOT_CMD && size == sizeof(command)) {
     
     memcpy(&command, answer, sizeof(command));
     if (command.cmd != BOOT_RETURN_OK) {
@@ -203,7 +202,7 @@ void Flasher::writePage() {
   uint8_t size;
   
   uint8_t *answer = this->sendCommand(BOOT_FLASH_WRITE_PAGE, 0x00, 0x00, &mode, &size);
-  if (mode == BOOT_MODE_CMD && size == sizeof(command)) {
+  if (mode == BOOT_CMD && size == sizeof(command)) {
     
     memcpy(&command, answer, sizeof(command));
     if (command.cmd != BOOT_RETURN_OK) {
@@ -220,7 +219,7 @@ bool Flasher::checkCRC(uint32_t addr, uint32_t crc32) {
   uint8_t size;
   
   uint8_t *answer = this->sendCommand(BOOT_FLASH_CHECK_CRC, crc32, addr, &mode, &size);
-  if (mode == BOOT_MODE_CMD && size == sizeof(command)) {
+  if (mode == BOOT_CMD && size == sizeof(command)) {
     
     memcpy(&command, answer, sizeof(command));
     if (command.cmd == BOOT_RETURN_CRC32_ERROR) {
