@@ -1,16 +1,13 @@
-#define _GLIBCXX_USE_CXX11_ABI 0
-
 #include <string>
 #include <algorithm>
 #include <cmath>
 #include <map>
 #include <fstream>
-#include <tclap/CmdLine.h>
+#include <boost/program_options.hpp>
 #include "CRC32.h"
 #include "flasher.h"
 
 using namespace std;
-using namespace TCLAP;
 
 bool findVersionSignature(firmware_version *ver, ifstream *file) {
   char buf[5];
@@ -112,7 +109,7 @@ void getBootInfo(void) {
   
 }
 
-void flash(string fname, bool checkSig) {
+void write(string fname, bool dcheckSig) {
   ifstream file;
   firmware_version fVersion;
   int fSize;
@@ -132,7 +129,7 @@ void flash(string fname, bool checkSig) {
   libusb_device_handle *handle = NULL;
   
   try {
-    if(checkSig) {
+    if(!dcheckSig) {
       if(findVersionSignature(&fVersion, &file)) {
         cout << "Detected firmware: \t";
         cout << fVersion.firmware_name;
@@ -172,8 +169,8 @@ void flash(string fname, bool checkSig) {
       uint8_t buf[bootInfo.page_size] = { 0 };
       size_t r = 0;
 
-      int n = 1024;
-      if((1024 + file.tellg()) > fSize) {
+      int n = bootInfo.page_size;
+      if((n + file.tellg()) > fSize) {
         n = fSize - file.tellg();
       }
       r = file.read((char*)&buf[0], n).gcount();
@@ -219,73 +216,65 @@ void flash(string fname, bool checkSig) {
 }
 
 int main(int argc, char *argv[]) {
-  string fname;
+  namespace po = boost::program_options;
+
+  string filename;
   string command;
   bool checkSig;
+  
+  po::options_description desc("Options"); 
+  desc.add_options() 
+    ("help,h", "Print help messages")
+    ("version,v", "Display the version number")
+    ("filename,f", po::value<string> (&filename), "Firmware file")
+    ("dont-check,d", po::bool_switch(&checkSig), "Don't check the firmware signature")
+    ("command", po::value<string> (&command), "Command: bootinfo | write");
+      
+  po::positional_options_description p; 
+  p.add("command", 1); 
+  
+  po::variables_map vm;
+  
   try {
-    CmdLine cmd("Flasher for Anastasia Bootloader", ' ', "0.1.0");
+    po::store(po::command_line_parser(argc, argv).options(desc).positional(p).run(), vm);
+    po::notify(vm); 
+    if (vm.count("help")) { 
+      cout << "Anastasia Flasher. Usage: AnastasiaFlasher <command> [-f filename] [-v] [-d]" << endl;
+      cout << desc << endl;
+      return 0;
+    }
     
-    vector<string> allowed;
-		allowed.push_back("write");
-		allowed.push_back("erase");
-		allowed.push_back("reboot");
-		allowed.push_back("dump");
-    allowed.push_back("bootinfo");
-		ValuesConstraint<string> allowedVals(allowed);
-
-    UnlabeledValueArg<string> cmdArg("command", "command", true, "", "command", false, (Visitor *) &allowedVals);
-    ValueArg<string> fileArg("f", "file", "File to flash", false, "main.bin", "string");
-    SwitchArg checkSigArg("d", "dont-check", "Don't check firmware signature", true);
-    cmd.add(cmdArg);
-    cmd.add(fileArg);
-    cmd.add(checkSigArg);
-
-    cmd.parse(argc, argv);
+    if (vm.count("version")) {
+      cout << "Anastasia Flasher. Version: " << FLASHER_V_MAJOR << "." << FLASHER_V_MINOR << "." << FLASHER_V_FIXN << endl;
+      return 0;
+    }
     
-    fname = fileArg.getValue();
-    command = cmdArg.getValue();
-    checkSig = checkSigArg.getValue();
-  } catch (TCLAP::ArgException &e) {
-    cerr << "error: " << e.error() << " for arg " << e.argId() << endl;
-    return 0;
-  }
-  
-  #define CMD_WRITE 1
-  #define CMD_DUMP 2
-  #define CMP_ERASE 3
-  #define CMD_REBOOT 4
-  #define CMD_BOOTINFO 5
-  
-  map <string, int> allowedCommands;
-  
-  allowedCommands["write"] = CMD_WRITE;
-  allowedCommands["dump"] = CMD_DUMP;
-  allowedCommands["erase"] = CMP_ERASE;
-  allowedCommands["reboot"] = CMD_REBOOT;
-  allowedCommands["bootinfo"] = CMD_BOOTINFO;
-  
-  switch(allowedCommands[command]) {
-    case CMD_WRITE: {
-      flash(fname, checkSig);
-      break;
+    if(vm.count("command"))  { 
+      if (command.compare("bootinfo") == 0) {
+        getBootInfo();
+      } else if (command.compare("write") == 0) {
+        if (!vm.count("filename")) {
+          cout << "Please specify filename to write" << endl;
+          cout << desc << endl;
+          return 0;
+        } else {
+          write(filename, checkSig);
+        }
+      }
+      
+    } else {
+      cout << "Anastasia Flasher. Usage: AnastasiaFlasher <command> [-f filename] [-v] [-d]" << endl;
+      cout << desc << endl; 
+      return 0;
     }
-    case CMD_BOOTINFO: {
-      getBootInfo();
-      break;
-    }
-    case CMD_DUMP: {
-      break;
-    }
-    case CMP_ERASE: {
-      break;
-    }
-    case CMD_REBOOT: {
-      break;
-    }
-    default: {
-      cout << "Unsupported command" << endl;
-    }
-  }
-  
+    
+  } catch(boost::program_options::required_option& e)  { 
+    std::cerr << "ERROR: " << e.what() << std::endl << std::endl; 
+    return 0; 
+  } catch(boost::program_options::error& e) {
+    std::cerr << "ERROR: " << e.what() << std::endl << std::endl; 
+    return 0; 
+  } 
+ 
   return 0;
 }

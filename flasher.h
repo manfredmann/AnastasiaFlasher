@@ -33,6 +33,10 @@ using namespace std;
 #define BOOT_CMD 1
 #define BOOT_DATA 2
 
+#define FLASHER_V_MAJOR 0
+#define FLASHER_V_MINOR 1
+#define FLASHER_V_FIXN 0
+
 #pragma pack(1)
 typedef struct {
   unsigned char bootloader_name[32];
