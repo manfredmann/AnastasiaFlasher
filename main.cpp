@@ -47,7 +47,7 @@ libusb_device_handle *usbInit(void) {
   libusb_init(NULL);
     // libusb_set_debug(NULL, 3);
 
-  handle = libusb_open_device_with_vid_pid(NULL, 0x0483, 0x5710);
+  handle = libusb_open_device_with_vid_pid(NULL, 0x1209, 0xCC86);
   if(handle == NULL) {
     throw Error::USBException(0);
   } else {
